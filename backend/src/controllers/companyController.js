@@ -1,0 +1,1116 @@
+import bcrypt from "bcrypt";
+import { v2 as cloudinary } from "cloudinary";
+
+import generateToken from "../utils/generateToken.js";
+import Company from "../models/Company.js";
+import Job from "../models/Job.js";
+import JobApplication from "../models/JobApplication.js";
+import User from "../models/User.js";
+import Notification from "../models/Notification.js";
+import CompanyNotification from "../models/CompanyNotification.js";
+import Rating from "../models/Rating.js";
+
+
+export const registerCompany = async (req, res) => {
+  try {
+    const { name, email, password, accountType } = req.body; // Added accountType
+    const imageFile = req.file;
+
+    if (!name) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Enter your name" });
+    }
+
+    if (!email) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Enter your email" });
+    }
+
+    if (!password) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Enter your password" });
+    }
+
+    if (!imageFile) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Upload your logo" });
+    }
+
+    const existingCompany = await Company.findOne({ email });
+
+    if (existingCompany) {
+      return res
+        .status(409)
+        .json({ success: false, message: "Company already exists" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const imageUpload = await cloudinary.uploader.upload(imageFile.path);
+
+    const company = new Company({
+      name,
+      email,
+      password: hashedPassword,
+      image: imageUpload.secure_url,
+      accountType: accountType || "Company", // Set account type
+    });
+
+    await company.save();
+
+    const token = await generateToken(company._id);
+
+    return res.status(201).json({
+      success: true,
+      message: "Registration successful",
+      companyData: {
+        _id: company._id,
+        name: company.name,
+        email: company.email,
+        image: company.image,
+        accountType: company.accountType, // Include in response
+      },
+      token,
+    });
+  } catch (error) {
+    console.log(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Registration failed",
+    });
+  }
+};
+
+export const loginCompany = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Email is required" });
+    }
+
+    if (!password) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Password is required" });
+    }
+
+    const company = await Company.findOne({ email });
+
+    if (!company) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Company not found" });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, company.password);
+
+    if (!isPasswordValid) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid password" });
+    }
+
+    const token = await generateToken(company._id);
+
+    return res.status(200).json({
+      success: true,
+      message: "Login successful",
+      companyData: company,
+      token,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ success: false, message: "Login failed" });
+  }
+};
+
+export const fetchCompanyData = async (req, res) => {
+  try {
+    const company = req.companyData;
+
+    if (!company) {
+      return res.status(404).json({
+        success: false,
+        message: "Company not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Company data fetched successfully",
+      companyData: company,
+    });
+  } catch (error) {
+    console.log(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch company data",
+    });
+  }
+};
+
+export const postJob = async (req, res) => {
+  try {
+    const { title, description, location, experienceLevel, salary, category, jobType, workArrangement, internshipType } = req.body;
+
+    // Check if company is verified
+    if (!req.companyData.isVerified) {
+      return res.status(403).json({
+        success: false,
+        message: "Please complete onboarding to access job posting features.",
+        requiresVerification: true,
+      });
+    }
+
+    // Validate required fields
+    if (!title || !description || !experienceLevel || !salary || !category || !jobType || !workArrangement) {
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required",
+      });
+    }
+
+    // Internship type required for Internship jobs
+    if (jobType === "Internship" && !internshipType) {
+      return res.status(400).json({
+        success: false,
+        message: "Please specify if the internship is paid or unpaid",
+      });
+    }
+
+    // Location is required for Onsite and Hybrid, optional for Remote
+    if (workArrangement !== "Remote" && !location) {
+      return res.status(400).json({
+        success: false,
+        message: "Job location is required for Onsite and Hybrid roles",
+      });
+    }
+
+    const companyId = req.companyData._id;
+
+    const jobData = {
+      title,
+      description,
+      location: workArrangement === "Remote" ? "Remote" : location,
+      experienceLevel,
+      salary,
+      category,
+      jobType,
+      workArrangement,
+      companyId,
+      date: Date.now(),
+    };
+
+    // Only add internshipType if job is an internship
+    if (jobType === "Internship") {
+      jobData.internshipType = internshipType;
+    }
+
+    const job = new Job(jobData);
+    await job.save();
+
+    // ======= JOB MATCHMAKING - Create notifications for matching candidates =======
+    try {
+      // Find users who have this category in their job preferences and have notifications enabled
+      const matchingUsers = await User.find({
+        "jobPreferences.categories": category,
+        "jobPreferences.notifications": { $ne: false }
+      }).select("_id name jobPreferences");
+
+      // Create notifications for each matching user
+      const notifications = matchingUsers.map(user => ({
+        userId: user._id,
+        type: "job_match",
+        title: `New ${category} job posted!`,
+        message: `${title} at ${req.companyData.name} - ${workArrangement} | ${location || "Remote"}`,
+        jobId: job._id,
+        isRead: false,
+        createdAt: new Date()
+      }));
+
+      if (notifications.length > 0) {
+        await Notification.insertMany(notifications);
+        console.log(`Created ${notifications.length} job match notifications for category: ${category}`);
+      }
+    } catch (notifError) {
+      // Don't fail the job posting if notifications fail
+      console.error("Error creating job match notifications:", notifError);
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: "Job posted successfully",
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Job posting failed",
+    });
+  }
+};
+
+
+export const getCompanyPostedAllJobs = async (req, res) => {
+  try {
+    const companyId = req.companyData._id;
+
+    // Exclude soft-deleted jobs
+    const jobs = await Job.find({ companyId, isDeleted: { $ne: true } });
+
+    const jobsData = await Promise.all(
+      jobs.map(async (job) => {
+        const applicants = await JobApplication.find({ jobId: job._id });
+
+        return { ...job.toObject(), applicants: applicants.length };
+      })
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Jobs fetched successfully",
+      jobData: jobsData,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Job fetching failed",
+    });
+  }
+};
+
+export const changeJobVisibility = async (req, res) => {
+  try {
+    const { id } = req.body;
+    const companyId = req.companyData._id;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Job ID is required",
+      });
+    }
+
+    const job = await Job.findOne({ _id: id, companyId });
+
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: "Job not found",
+      });
+    }
+
+    // Use findByIdAndUpdate to avoid validation issues with legacy data
+    await Job.findByIdAndUpdate(
+      id,
+      { visible: !job.visible },
+      { runValidators: false }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Visibility changed",
+    });
+  } catch (error) {
+    console.error("Error changing job visibility:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Visibility change failed",
+    });
+  }
+};
+
+export const getCompanyJobApplicants = async (req, res) => {
+  try {
+    const companyId = req.companyData._id;
+
+    const applicants = await JobApplication.find({ companyId })
+      .populate("userId", "name image resume")
+      .populate("jobId", "title location date status");
+
+    return res.status(200).json({
+      success: true,
+      message: "Applicants fetched successfully",
+      viewApplicationData: applicants,
+    });
+  } catch (error) {
+    console.log(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch applicants",
+    });
+  }
+};
+
+export const changeStatus = async (req, res) => {
+  try {
+    const { id, status } = req.body;
+
+    if (!id || !status) {
+      return res.status(400).json({
+        success: false,
+        message: "Application ID and status are required",
+      });
+    }
+
+    const updatedApplication = await JobApplication.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true }
+    ).populate("jobId", "title");
+
+    if (!updatedApplication) {
+      return res.status(404).json({
+        success: false,
+        message: "Job application not found",
+      });
+    }
+
+    // Create notification for the user about their application status change
+    const jobTitle = updatedApplication.jobId?.title || "Job";
+    let notificationTitle, notificationMessage;
+
+    if (status === "Accepted") {
+      notificationTitle = "🎉 Application Accepted!";
+      notificationMessage = `Congratulations! Your application for "${jobTitle}" has been accepted.`;
+    } else if (status === "Rejected") {
+      notificationTitle = "Application Update";
+      notificationMessage = `Your application for "${jobTitle}" was not selected. Keep applying!`;
+    } else if (status === "Pending") {
+      notificationTitle = "Application Under Review";
+      notificationMessage = `Your application for "${jobTitle}" is being reviewed.`;
+    } else {
+      notificationTitle = "Application Status Updated";
+      notificationMessage = `Your application for "${jobTitle}" status changed to ${status}.`;
+    }
+
+    await Notification.create({
+      userId: updatedApplication.userId,
+      type: "application_status",
+      title: notificationTitle,
+      message: notificationMessage,
+      jobId: updatedApplication.jobId?._id,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Status changed successfully",
+      application: updatedApplication,
+    });
+  } catch (error) {
+    console.log(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to change status",
+    });
+  }
+};
+
+// Update company profile - Step 2 of onboarding
+export const updateCompanyProfile = async (req, res) => {
+  try {
+    const companyId = req.companyData._id;
+    const {
+      industry,
+      companySize,
+      website,
+      linkedIn,
+      description,
+      address,
+      city,
+      state,
+      country,
+      gstNumber,
+      registrationNumber,
+      contactPerson,
+      contactPhone,
+    } = req.body;
+
+    // Get current company to check account type
+    const company = await Company.findById(companyId);
+
+    if (!company) {
+      return res.status(404).json({
+        success: false,
+        message: "Company not found",
+      });
+    }
+
+    // Validate required fields based on account type
+    if (company.accountType === "Household") {
+      // Households only need: city, state, contactPerson, contactPhone
+      if (!city || !state || !contactPerson || !contactPhone) {
+        return res.status(400).json({
+          success: false,
+          message: "Please fill all required fields: City, State, Contact Person, Contact Phone",
+        });
+      }
+    } else {
+      // Companies need all fields including industry and companySize
+      if (!industry || !companySize || !city || !state || !contactPerson || !contactPhone) {
+        return res.status(400).json({
+          success: false,
+          message: "Please fill all required fields: Industry, Company Size, City, State, Contact Person, Contact Phone",
+        });
+      }
+    }
+
+    const updatedCompany = await Company.findByIdAndUpdate(
+      companyId,
+      {
+        industry: industry || "",
+        companySize: companySize || "",
+        website: website || "",
+        linkedIn: linkedIn || "",
+        description: description || "",
+        address: address || "",
+        city,
+        state,
+        country: country || "India",
+        gstNumber: gstNumber || "",
+        registrationNumber: registrationNumber || "",
+        contactPerson,
+        contactPhone,
+        onboardingComplete: true,
+      },
+      { new: true }
+    );
+
+    if (!updatedCompany) {
+      return res.status(404).json({
+        success: false,
+        message: "Company not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Company profile updated successfully! Your account is now pending verification.",
+      companyData: updatedCompany,
+    });
+  } catch (error) {
+    console.error("Error updating company profile:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update company profile",
+    });
+  }
+};
+
+// Upload Household Documents
+export const uploadHouseholdDocuments = async (req, res) => {
+  try {
+    const companyId = req.companyData._id;
+    const { idProofType, addressProofType } = req.body;
+
+    const company = await Company.findById(companyId);
+
+    if (!company) {
+      return res.status(404).json({
+        success: false,
+        message: "Company not found",
+      });
+    }
+
+    if (company.accountType !== "Household") {
+      return res.status(400).json({
+        success: false,
+        message: "This endpoint is only for household accounts",
+      });
+    }
+
+    // Check if files are uploaded
+    if (!req.files || !req.files.idProofDocument || !req.files.addressProofDocument) {
+      return res.status(400).json({
+        success: false,
+        message: "Please upload both ID proof and address proof",
+      });
+    }
+
+    const idProofDocument = req.files.idProofDocument[0].path;
+    const addressProofDocument = req.files.addressProofDocument[0].path;
+
+    // Upload to Cloudinary
+    const idProofUpload = await cloudinary.uploader.upload(idProofDocument, {
+      folder: "household_documents/id_proof"
+    });
+
+    const addressProofUpload = await cloudinary.uploader.upload(addressProofDocument, {
+      folder: "household_documents/address_proof"
+    });
+
+    // Update company with Cloudinary URLs
+    const updatedCompany = await Company.findByIdAndUpdate(
+      companyId,
+      {
+        idProofType,
+        idProofDocument: idProofUpload.secure_url,
+        addressProofType,
+        addressProofDocument: addressProofUpload.secure_url,
+        documentsSubmitted: true,
+      },
+      { new: true }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Documents uploaded successfully. Awaiting admin verification.",
+      companyData: updatedCompany,
+    });
+  } catch (error) {
+    console.error("Error uploading documents:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to upload documents",
+    });
+  }
+};
+
+// Edit job
+export const editJob = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const companyId = req.companyData._id;
+    const { title, description, location, experienceLevel, salary, category, jobType, workArrangement, internshipType, visible } = req.body;
+
+    // First verify the job exists and belongs to this company
+    const existingJob = await Job.findOne({ _id: id, companyId });
+
+    if (!existingJob) {
+      return res.status(404).json({
+        success: false,
+        message: "Job not found or you don't have permission to edit it",
+      });
+    }
+
+    // Build update object
+    const updateData = {};
+    if (title) updateData.title = title;
+    if (description) updateData.description = description;
+    if (experienceLevel) updateData.experienceLevel = experienceLevel;
+    if (salary) updateData.salary = Number(salary);
+    if (category) updateData.category = category;
+    if (jobType) updateData.jobType = jobType;
+    if (workArrangement) updateData.workArrangement = workArrangement;
+    if (visible !== undefined) updateData.visible = visible;
+
+    // Handle location based on work arrangement
+    if (workArrangement === "Remote") {
+      updateData.location = "Remote";
+    } else if (location) {
+      updateData.location = location;
+    }
+
+    // Handle internship type
+    if (jobType === "Internship" && internshipType) {
+      updateData.internshipType = internshipType;
+    } else if (jobType !== "Internship") {
+      updateData.$unset = { internshipType: "" };
+    }
+
+    // Use findByIdAndUpdate to avoid validation issues with legacy data
+    const updatedJob = await Job.findByIdAndUpdate(
+      id,
+      updateData,
+      { new: true, runValidators: false }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Job updated successfully",
+      job: updatedJob,
+    });
+  } catch (error) {
+    console.error("Error editing job:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update job",
+    });
+  }
+};
+
+// Soft delete job
+export const deleteJob = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const companyId = req.companyData._id;
+
+    const job = await Job.findOne({ _id: id, companyId });
+
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: "Job not found or you don't have permission to delete it",
+      });
+    }
+
+    // Soft delete using findByIdAndUpdate to avoid validation issues
+    await Job.findByIdAndUpdate(
+      id,
+      {
+        isDeleted: true,
+        deletedAt: new Date(),
+        visible: false
+      },
+      { runValidators: false }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Job deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting job:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete job",
+    });
+  }
+};
+
+// Get applicant details for recruiter view
+export const getApplicantDetail = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const companyId = req.companyData._id;
+
+    // Find the job application and verify it belongs to this company
+    const application = await JobApplication.findById(id).populate("jobId", "companyId");
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: "Application not found",
+      });
+    }
+
+    // Verify this application is for a job posted by this company
+    if (application.jobId.companyId.toString() !== companyId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "You don't have permission to view this applicant",
+      });
+    }
+
+    // Get full user details with resume parsed data
+    const user = await User.findById(application.userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Applicant not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      applicant: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        image: user.image,
+        resume: user.resume,
+        resumeParseScore: user.resumeParseScore,
+        careerObjective: user.careerObjective,
+        contactInfo: user.contactInfo,
+        technicalSkills: user.technicalSkills,
+        personalSkills: user.personalSkills,
+        tools: user.tools,
+        projectTypes: user.projectTypes,
+        languages: user.languages,
+        education: user.education,
+        projects: user.projects,
+        certifications: user.certifications,
+        extraCurricular: user.extraCurricular,
+        hobbies: user.hobbies,
+        areasOfInterest: user.areasOfInterest,
+      },
+      application: {
+        status: application.status,
+        appliedDate: application.date,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching applicant detail:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch applicant details",
+    });
+  }
+};
+
+// Get job applicants grouped by job
+export const getJobApplicantsGrouped = async (req, res) => {
+  try {
+    const companyId = req.companyData._id;
+
+    // Get all non-deleted jobs for this company
+    const jobs = await Job.find({ companyId, isDeleted: { $ne: true } });
+
+    // For each job, get the applicants
+    const jobsWithApplicants = await Promise.all(
+      jobs.map(async (job) => {
+        const applicants = await JobApplication.find({ jobId: job._id })
+          .populate("userId", "name image resume email technicalSkills tools projectTypes projects areasOfInterest experience contactInfo")
+          .sort({ date: -1 });
+
+        return {
+          _id: job._id,
+          title: job.title,
+          location: job.location,
+          jobType: job.jobType,
+          workArrangement: job.workArrangement,
+          experienceLevel: job.experienceLevel,
+          date: job.date,
+          visible: job.visible,
+          applicantCount: applicants.length,
+          applicants: applicants.map((app) => ({
+            _id: app._id,
+            userId: app.userId,
+            status: app.status,
+            date: app.date,
+          })),
+        };
+      })
+    );
+
+    // Sort by date (newest first) and filter to only jobs with applicants if needed
+    const sortedJobs = jobsWithApplicants.sort((a, b) => b.date - a.date);
+
+    return res.status(200).json({
+      success: true,
+      jobsWithApplicants: sortedJobs,
+    });
+  } catch (error) {
+    console.error("Error fetching grouped applicants:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch applications",
+    });
+  }
+};
+
+// Get company notifications
+export const getCompanyNotifications = async (req, res) => {
+  try {
+    const companyId = req.companyData._id;
+    const { page = 1, limit = 20 } = req.query;
+
+    const notifications = await CompanyNotification.find({ companyId })
+      .populate("fromUser", "name image")
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit));
+
+    const total = await CompanyNotification.countDocuments({ companyId });
+    const unreadCount = await CompanyNotification.countDocuments({ companyId, isRead: false });
+
+    return res.json({
+      success: true,
+      notifications,
+      unreadCount,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error("Get company notifications error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to get notifications"
+    });
+  }
+};
+
+// Mark company notification as read
+export const markCompanyNotificationRead = async (req, res) => {
+  try {
+    const companyId = req.companyData._id;
+    const { notificationId } = req.params;
+
+    if (notificationId === "all") {
+      await CompanyNotification.updateMany(
+        { companyId, isRead: false },
+        { isRead: true }
+      );
+      return res.json({ success: true, message: "All notifications marked as read" });
+    }
+
+    const notification = await CompanyNotification.findOneAndUpdate(
+      { _id: notificationId, companyId },
+      { isRead: true },
+      { new: true }
+    );
+
+    if (!notification) {
+      return res.status(404).json({
+        success: false,
+        message: "Notification not found"
+      });
+    }
+
+    return res.json({ success: true, notification });
+  } catch (error) {
+    console.error("Mark company notification read error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to mark notification as read"
+    });
+  }
+};
+
+// Rate a worker (company rates worker)
+export const rateWorker = async (req, res) => {
+  try {
+    const companyId = req.companyData._id;
+    const { workerId, rating, review
+    } = req.body;
+
+    // Validate rating
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({
+        success: false,
+        message: "Rating must be between 1 and 5"
+      });
+    }
+
+    // Check if worker exists
+    const worker = await User.findById(workerId);
+    if (!worker) {
+      return res.status(404).json({
+        success: false,
+        message: "Worker not found"
+      });
+    }
+
+    // Check if company has contacted this worker (verification)
+    const hasContacted = worker.serviceProfile?.contactedBy?.some(
+      contact => contact.companyId?.toString() === companyId.toString()
+    );
+
+    if (!hasContacted) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only rate workers you have contacted"
+      });
+    }
+
+    // Check if already rated
+    const existingRating = await Rating.findOne({
+      raterCompanyId: companyId,
+      targetUserId: workerId,
+      type: "worker_rating"
+    });
+
+    if (existingRating) {
+      // Update existing rating
+      existingRating.rating = rating;
+      existingRating.review = review || existingRating.review;
+      await existingRating.save();
+
+      return res.json({
+        success: true,
+        message: "Rating updated successfully",
+        rating: existingRating
+      });
+    }
+
+    // Create new rating
+    const newRating = new Rating({
+      type: "worker_rating",
+      targetUserId: workerId,
+      raterCompanyId: companyId,
+      rating,
+      review: review || ""
+    });
+
+    await newRating.save();
+
+    return res.status(201).json({
+      success: true,
+      message: "Rating submitted successfully",
+      rating: newRating
+    });
+  } catch (error) {
+    console.error("Rate worker error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to submit rating"
+    });
+  }
+};
+
+// Get ratings for a worker (public)
+export const getWorkerRatings = async (req, res) => {
+  try {
+    const { workerId } = req.params;
+    const { page = 1, limit = 10 } = req.query;
+
+    // Get average rating
+    const ratingStats = await Rating.getWorkerRating(workerId);
+
+    // Get individual ratings
+    const ratings = await Rating.find({
+      targetUserId: workerId,
+      type: "worker_rating",
+      isVisible: true
+    })
+      .populate("raterCompanyId", "name image")
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit));
+
+    const total = await Rating.countDocuments({
+      targetUserId: workerId,
+      type: "worker_rating",
+      isVisible: true
+    });
+
+    return res.json({
+      success: true,
+      averageRating: Math.round(ratingStats.averageRating * 10) / 10,
+      totalRatings: ratingStats.totalRatings,
+      ratings,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error("Get worker ratings error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to get ratings"
+    });
+  }
+};
+
+// Check if company has already rated a worker
+export const checkWorkerRatingStatus = async (req, res) => {
+  try {
+    const companyId = req.companyData._id;
+    const { workerId } = req.params;
+
+    const existingRating = await Rating.findOne({
+      raterCompanyId: companyId,
+      targetUserId: workerId,
+      type: "worker_rating"
+    });
+
+    return res.json({
+      success: true,
+      hasRated: !!existingRating,
+      rating: existingRating
+    });
+  } catch (error) {
+    console.error("Check rating status error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to check rating status"
+    });
+  }
+};
+
+// Get all workers contacted by this company
+export const getContactedWorkers = async (req, res) => {
+  try {
+    const companyId = req.companyData._id;
+    const { page = 1, limit = 20, rated } = req.query;
+
+    // Find all users where this company is in their contactedBy array
+    const filter = {
+      "serviceProfile.isActive": true,
+      "serviceProfile.contactedBy.companyId": companyId
+    };
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Get workers contacted by this company
+    const workers = await User.find(filter)
+      .select("name email phone image serviceProfile.primaryCategory serviceProfile.contactedBy serviceProfile.verificationStatus")
+      .sort({ "serviceProfile.contactedBy.contactedAt": -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await User.countDocuments(filter);
+
+    // Get rating info for each worker
+    const workersWithRatings = await Promise.all(
+      workers.map(async (worker) => {
+        // Find when this company contacted this worker
+        const contactInfo = worker.serviceProfile?.contactedBy?.find(
+          c => c.companyId?.toString() === companyId.toString()
+        );
+
+        // Check if company has rated this worker
+        const rating = await Rating.findOne({
+          raterCompanyId: companyId,
+          targetUserId: worker._id,
+          type: "worker_rating"
+        });
+
+        // Get worker's average rating
+        const ratingStats = await Rating.getWorkerRating(worker._id);
+
+        return {
+          _id: worker._id,
+          name: worker.name,
+          email: worker.email,
+          phone: worker.phone,
+          image: worker.image,
+          category: worker.serviceProfile?.primaryCategory || "N/A",
+          verificationStatus: worker.serviceProfile?.verificationStatus || "Pending",
+          contactedAt: contactInfo?.contactedAt,
+          hasRated: !!rating,
+          myRating: rating?.rating,
+          averageRating: ratingStats?.averageRating || 0,
+          totalRatings: ratingStats?.totalRatings || 0
+        };
+      })
+    );
+
+    // Filter by rated status if specified
+    let filteredWorkers = workersWithRatings;
+    if (rated === "true") {
+      filteredWorkers = workersWithRatings.filter(w => w.hasRated);
+    } else if (rated === "false") {
+      filteredWorkers = workersWithRatings.filter(w => !w.hasRated);
+    }
+
+    return res.json({
+      success: true,
+      workers: filteredWorkers,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    console.error("Get contacted workers error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to get contacted workers"
+    });
+  }
+};
