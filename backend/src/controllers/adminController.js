@@ -396,8 +396,14 @@ export const reparseUserResume = async (req, res) => {
                 const aiData = aiResult.data;
 
                 // Map AI response to existing user model structure
+                // Preserve user's social links (linkedin, github, portfolio) - only update phone/location from resume
                 extractedData = {
-                    contactInfo: aiData.contact || {},
+                    contactInfo: {
+                        ...(aiData.contact || {}),
+                        linkedin: user.contactInfo?.linkedin || aiData.contact?.linkedin || "",
+                        github: user.contactInfo?.github || aiData.contact?.github || "",
+                        portfolio: user.contactInfo?.portfolio || aiData.contact?.portfolio || ""
+                    },
                     careerObjective: aiData.careerObjective || "",
                     technicalSkills: aiData.technicalSkills || [],
                     tools: aiData.tools || [],
@@ -421,7 +427,7 @@ export const reparseUserResume = async (req, res) => {
                             description: (exp.responsibilities || []).join("; ")
                         }))
                     },
-                    // Deduplicate projects by name
+                    // Deduplicate projects by name and preserve existing links
                     projects: [...new Map((aiData.projects || []).map(proj => [
                         proj.name?.toLowerCase().trim(),
                         {
@@ -430,7 +436,11 @@ export const reparseUserResume = async (req, res) => {
                             role: proj.role || "",
                             tools: proj.tools || [],
                             description: proj.description || "",
-                            category: categorizeProject(proj)
+                            category: categorizeProject(proj),
+                            // Preserve existing link if project name matches
+                            link: (user.projects || []).find(
+                                p => p.name?.toLowerCase().trim() === proj.name?.toLowerCase().trim()
+                            )?.link || ""
                         }
                     ])).values()],
                     languages: (aiData.languages || []).map(lang => ({

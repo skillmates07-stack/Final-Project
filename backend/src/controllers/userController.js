@@ -257,8 +257,14 @@ export const uploadResume = async (req, res) => {
             const aiData = aiResult.data;
 
             // Map AI response to user model structure
+            // Preserve user's social links (linkedin, github, portfolio) - only update phone/location from resume
             extractedData = {
-              contactInfo: aiData.contact || {},
+              contactInfo: {
+                ...(aiData.contact || {}),
+                linkedin: userData.contactInfo?.linkedin || aiData.contact?.linkedin || "",
+                github: userData.contactInfo?.github || aiData.contact?.github || "",
+                portfolio: userData.contactInfo?.portfolio || aiData.contact?.portfolio || ""
+              },
               careerObjective: aiData.careerObjective || "",
               technicalSkills: aiData.technicalSkills || [],
               tools: aiData.tools || [],
@@ -288,7 +294,11 @@ export const uploadResume = async (req, res) => {
                 role: proj.role || "",
                 tools: proj.tools || [],
                 description: proj.description || "",
-                category: "Web Development"
+                category: "Web Development",
+                // Preserve existing link if project name matches
+                link: (userData.projects || []).find(
+                  p => p.name?.toLowerCase().trim() === proj.name?.toLowerCase().trim()
+                )?.link || ""
               })),
               languages: (aiData.languages || []).map(lang => ({
                 language: lang.language || lang,
