@@ -22,6 +22,7 @@ import {
     LoaderCircle,
     Target,
     Trophy,
+    ExternalLink,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -134,8 +135,8 @@ const ApplicantDetail = () => {
                             )}
                             {application && (
                                 <span className={`text-xs px-2 py-1 rounded ${application.status === "Accepted" ? "bg-green-100 text-green-700" :
-                                        application.status === "Rejected" ? "bg-red-100 text-red-700" :
-                                            "bg-yellow-100 text-yellow-700"
+                                    application.status === "Rejected" ? "bg-red-100 text-red-700" :
+                                        "bg-yellow-100 text-yellow-700"
                                     }`}>
                                     {application.status}
                                 </span>
@@ -180,6 +181,17 @@ const ApplicantDetail = () => {
                                 >
                                     <Github size={16} />
                                     {user.contactInfo.github}
+                                </a>
+                            )}
+                            {user.contactInfo?.portfolio && (
+                                <a
+                                    href={user.contactInfo.portfolio}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-2 text-indigo-600 hover:underline"
+                                >
+                                    <Globe size={16} />
+                                    Portfolio
                                 </a>
                             )}
                             {user.contactInfo?.dob && (
@@ -352,6 +364,17 @@ const ApplicantDetail = () => {
                                 )}
                                 {project.description && (
                                     <p className="text-sm text-gray-600">{project.description}</p>
+                                )}
+                                {project.link && (
+                                    <a
+                                        href={project.link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 hover:underline mt-2"
+                                    >
+                                        <ExternalLink size={14} />
+                                        View Project
+                                    </a>
                                 )}
                             </div>
                         ))}

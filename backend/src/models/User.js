@@ -53,6 +53,7 @@ const userSchema = mongoose.Schema({
     tools: [{ type: String }],
     description: { type: String },
     category: { type: String }, // e.g., Web Development, IoT, AI/ML
+    link: { type: String, default: "" }, // Hosted project URL (GitHub Pages, Vercel, etc.)
   }],
 
   // Work Experience

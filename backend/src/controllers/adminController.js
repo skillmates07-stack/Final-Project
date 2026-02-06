@@ -75,19 +75,40 @@ export const loginAdmin = async (req, res) => {
 // Get all users with their resume data
 export const getAllUsers = async (req, res) => {
     try {
-        const { skills, minExperience, maxExperience, minCTC, maxCTC, projectType } = req.query;
+        const { search, skills, minExperience, maxExperience, minCTC, maxCTC, projectType } = req.query;
 
         let query = {};
+
+        // Search by name or email (case-insensitive)
+        if (search) {
+            const searchRegex = new RegExp(search, "i");
+            query.$or = [
+                { name: searchRegex },
+                { email: searchRegex }
+            ];
+        }
 
         // Filter by skills (case-insensitive partial match across technicalSkills, tools, and personalSkills)
         if (skills) {
             const skillsArray = skills.split(",").map(s => s.trim()).filter(s => s);
             const skillRegexes = skillsArray.map(s => new RegExp(s, "i"));
-            query.$or = [
-                { technicalSkills: { $in: skillRegexes } },
-                { tools: { $in: skillRegexes } },
-                { personalSkills: { $in: skillRegexes } }
-            ];
+            const skillQuery = {
+                $or: [
+                    { technicalSkills: { $in: skillRegexes } },
+                    { tools: { $in: skillRegexes } },
+                    { personalSkills: { $in: skillRegexes } }
+                ]
+            };
+            // If we already have an $or from search, combine using $and
+            if (query.$or) {
+                query.$and = [
+                    { $or: query.$or },
+                    skillQuery
+                ];
+                delete query.$or;
+            } else {
+                query.$or = skillQuery.$or;
+            }
         }
 
         // Filter by experience years

@@ -23,6 +23,7 @@ import {
     Target,
     Trophy,
     RefreshCw,
+    ExternalLink,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -209,6 +210,17 @@ const AdminUserDetail = () => {
                                     {user.contactInfo.github}
                                 </a>
                             )}
+                            {user.contactInfo?.portfolio && (
+                                <a
+                                    href={user.contactInfo.portfolio}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-2 text-indigo-600 hover:underline"
+                                >
+                                    <Globe size={16} />
+                                    Portfolio
+                                </a>
+                            )}
                             {user.contactInfo?.dob && (
                                 <div className="flex items-center gap-2">
                                     <Calendar size={16} className="text-gray-400" />
@@ -387,6 +399,17 @@ const AdminUserDetail = () => {
                                 )}
                                 {project.description && (
                                     <p className="text-sm text-gray-600">{project.description}</p>
+                                )}
+                                {project.link && (
+                                    <a
+                                        href={project.link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 hover:underline mt-2"
+                                    >
+                                        <ExternalLink size={14} />
+                                        View Project
+                                    </a>
                                 )}
                             </div>
                         ))}

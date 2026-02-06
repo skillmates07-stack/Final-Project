@@ -4,7 +4,7 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import {
     User, Briefcase, GraduationCap, Code, Globe, Save,
-    Plus, Trash2, Edit2, X, Check, LoaderCircle, FolderOpen
+    Plus, Trash2, Edit2, X, Check, LoaderCircle, FolderOpen, ExternalLink
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -165,7 +165,7 @@ const CandidateProfile = () => {
     const addProject = () => {
         setFormData(prev => ({
             ...prev,
-            projects: [...prev.projects, { name: "", description: "", duration: "", role: "", tools: [], category: "" }]
+            projects: [...prev.projects, { name: "", description: "", duration: "", role: "", tools: [], category: "", link: "" }]
         }));
     };
 
@@ -707,6 +707,21 @@ const CandidateProfile = () => {
                                         className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-3"
                                         rows={2}
                                     />
+                                    <div className="mt-3">
+                                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                                            Project Link (Optional)
+                                        </label>
+                                        <div className="relative">
+                                            <input
+                                                type="url"
+                                                placeholder="https://yourproject.com or https://github.com/user/repo"
+                                                value={project.link || ""}
+                                                onChange={(e) => updateProject(index, "link", e.target.value)}
+                                                className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            />
+                                            <ExternalLink size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                        </div>
+                                    </div>
                                 </div>
                             ))}
                         </div>

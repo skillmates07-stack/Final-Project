@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppContext } from "../context/AppContext";
 import axios from "axios";
-import { Building2, CheckCircle, XCircle, LoaderCircle, Mail, Eye, MapPin, Briefcase, Home } from "lucide-react";
+import { Building2, CheckCircle, XCircle, LoaderCircle, Mail, Eye, MapPin, Briefcase, Home, Search } from "lucide-react";
 import toast from "react-hot-toast";
 
 const AdminCompanies = () => {
@@ -13,6 +13,7 @@ const AdminCompanies = () => {
     const [verifyingId, setVerifyingId] = useState(null);
     const [filter, setFilter] = useState("all"); // all, verified, pending
     const [accountTypeFilter, setAccountTypeFilter] = useState("all"); // NEWall, Company, Household
+    const [searchTerm, setSearchTerm] = useState(""); // Company name/email search
 
     const fetchCompanies = async () => {
         setLoading(true);
@@ -44,10 +45,14 @@ const AdminCompanies = () => {
         }
     }, [adminToken, filter]);
 
-    // Filter companies by account type locally
-    const filteredCompanies = accountTypeFilter === "all"
-        ? companies
-        : companies.filter(c => c.accountType === accountTypeFilter);
+    // Filter companies by account type and search term locally
+    const filteredCompanies = companies.filter(c => {
+        const matchesAccountType = accountTypeFilter === "all" || c.accountType === accountTypeFilter;
+        const matchesSearch = searchTerm === "" ||
+            c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            c.email?.toLowerCase().includes(searchTerm.toLowerCase());
+        return matchesAccountType && matchesSearch;
+    });
 
     const handleVerify = async (companyId, isVerified) => {
         setVerifyingId(companyId);
@@ -76,8 +81,23 @@ const AdminCompanies = () => {
             <div className="flex flex-col gap-4 mb-6">
                 <h1 className="text-2xl font-semibold text-gray-700">Company Onboarding</h1>
 
-                {/* Filters */}
-                <div className="flex flex-wrap gap-4">
+                {/* Search and Filters */}
+                <div className="flex flex-wrap gap-4 items-end">
+                    {/* Search Input */}
+                    <div className="flex-1 min-w-[250px] max-w-md">
+                        <p className="text-xs text-gray-500 mb-2">Search Companies</p>
+                        <div className="relative">
+                            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <input
+                                type="text"
+                                placeholder="Search by name or email..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                            />
+                        </div>
+                    </div>
+
                     {/* Verification Status Filter */}
                     <div>
                         <p className="text-xs text-gray-500 mb-2">Verification Status</p>
@@ -96,8 +116,6 @@ const AdminCompanies = () => {
                             ))}
                         </div>
                     </div>
-
-                    {/* Account Type Filter - Removed, only Company type exists now */}
                 </div>
             </div>
 

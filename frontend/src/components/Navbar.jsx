@@ -31,7 +31,7 @@ const Navbar = () => {
   const menu = [
     { name: "Home", path: "/" },
     { name: "All Jobs", path: "/all-jobs/all" },
-    { name: "Services", path: "/services" },
+    { name: "Categories", path: "/services" },
     { name: "About", path: "/about" },
   ];
 

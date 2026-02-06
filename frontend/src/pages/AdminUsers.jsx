@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppContext } from "../context/AppContext";
 import axios from "axios";
-import { Filter, FileText, Mail, Briefcase, LoaderCircle, Eye, Code, Wrench, Ban, Unlock, Trash2 } from "lucide-react";
+import { Filter, FileText, Mail, Briefcase, LoaderCircle, Eye, Code, Wrench, Ban, Unlock, Trash2, Search } from "lucide-react";
 import toast from "react-hot-toast";
 
 const AdminUsers = () => {
@@ -14,6 +14,7 @@ const AdminUsers = () => {
 
     // Filter states
     const [filters, setFilters] = useState({
+        search: "", // Name/email search
         skills: "",
         minExperience: "",
         maxExperience: "",
@@ -26,6 +27,7 @@ const AdminUsers = () => {
         setLoading(true);
         try {
             const params = new URLSearchParams();
+            if (filters.search) params.append("search", filters.search);
             if (filters.skills) params.append("skills", filters.skills);
             if (filters.minExperience) params.append("minExperience", filters.minExperience);
             if (filters.maxExperience) params.append("maxExperience", filters.maxExperience);
@@ -76,6 +78,7 @@ const AdminUsers = () => {
 
     const clearFilters = () => {
         setFilters({
+            search: "",
             skills: "",
             minExperience: "",
             maxExperience: "",
@@ -156,6 +159,22 @@ const AdminUsers = () => {
             {/* Filters Panel */}
             {showFilters && (
                 <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6">
+                    {/* Search Input - Always Visible */}
+                    <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Search by Name or Email
+                        </label>
+                        <div className="relative max-w-md">
+                            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <input
+                                type="text"
+                                placeholder="Type to search..."
+                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                value={filters.search}
+                                onChange={(e) => handleFilterChange("search", e.target.value)}
+                            />
+                        </div>
+                    </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
