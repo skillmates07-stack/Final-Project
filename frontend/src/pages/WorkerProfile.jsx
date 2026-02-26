@@ -154,7 +154,10 @@ const WorkerProfile = () => {
             <div className="container mx-auto px-4 h-16 flex items-center justify-between">
                 <div className="flex items-center gap-6">
                     <Link to="/dashboard" className="flex items-center">
-                        <img className="w-[120px]" src={assets.logo} alt="Logo" />
+                        <div className="flex items-center gap-2">
+                            <img src="/favicon.png" alt="Recrut Logo" className="w-7 h-7" />
+                            <span className="text-2xl font-extrabold tracking-tight text-blue-600">Recrut</span>
+                        </div>
                     </Link>
                     <Link to="/browse-workers" className="flex items-center gap-2 text-gray-600 hover:text-gray-800">
                         <ArrowLeft className="w-4 h-4" />

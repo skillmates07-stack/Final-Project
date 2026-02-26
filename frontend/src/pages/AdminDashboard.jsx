@@ -76,7 +76,10 @@ const AdminDashboard = () => {
         <div className="flex flex-col min-h-screen">
             <header className="flex items-center justify-between border-b border-gray-200 py-3 bg-white sticky top-0 z-10 px-4">
                 <Link to="/admin" className="flex items-center gap-2">
-                    <img className="w-[120px]" src={assets.logo} alt="Logo" />
+                    <div className="flex items-center gap-2">
+                        <img src="/favicon.png" alt="Recrut Logo" className="w-7 h-7" />
+                        <span className="text-2xl font-extrabold tracking-tight text-blue-600">Recrut</span>
+                    </div>
                     <span className="bg-indigo-100 text-indigo-600 text-xs font-medium px-2 py-1 rounded">
                         Admin
                     </span>

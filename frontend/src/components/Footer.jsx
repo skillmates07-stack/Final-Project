@@ -11,11 +11,10 @@ const Footer = () => {
           {/* Brand */}
           <div className="col-span-1 md:col-span-2">
             <Link to="/">
-              <img
-                className="w-[120px] object-contain mb-4"
-                src={assets.logo}
-                alt="Superio Logo"
-              />
+              <div className="flex items-center gap-2">
+                <img src="/favicon.png" alt="Recrut Logo" className="w-7 h-7" />
+                <span className="text-2xl font-extrabold tracking-tight text-blue-600 mb-4 inline-block">Recrut</span>
+              </div>
             </Link>
             <p className="text-gray-600 text-sm max-w-md">
               Your trusted platform for connecting talent with opportunities. Find your dream job or hire the perfect candidate.

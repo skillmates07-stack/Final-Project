@@ -86,7 +86,10 @@ const Navbar = () => {
       <nav>
         <div className="h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center">
-            <img className="w-[120px]" src={assets.logo} alt="Lecruiter Logo" />
+            <div className="flex items-center gap-2">
+              <img src="/favicon.png" alt="Recrut Logo" className="w-7 h-7" />
+              <span className="text-2xl font-extrabold tracking-tight text-blue-600">Recrut</span>
+            </div>
           </Link>
 
           {/* Desktop Navigation */}
@@ -218,7 +221,10 @@ const Navbar = () => {
         <div className="relative flex flex-col w-4/5 max-w-sm h-full bg-white border-r border-r-gray-200">
           <div className="flex items-center justify-between p-4 border-b border-gray-200">
             <Link to="/" onClick={toggleMenu}>
-              <img className="h-8" src={assets.logo} alt="Lecruiter Logo" />
+              <div className="flex items-center gap-2">
+                <img src="/favicon.png" alt="Recrut Logo" className="w-7 h-7" />
+                <span className="text-2xl font-extrabold tracking-tight text-blue-600">Recrut</span>
+              </div>
             </Link>
             <button
               onClick={toggleMenu}
