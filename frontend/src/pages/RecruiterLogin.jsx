@@ -11,6 +11,7 @@ const RecruiterLogin = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const { backendUrl, setCompanyData, setCompanyToken } =
@@ -30,7 +31,12 @@ const RecruiterLogin = () => {
       if (data.success) {
         setCompanyToken(data.token);
         setCompanyData(data.companyData);
-        localStorage.setItem("companyToken", data.token);
+        if (rememberMe) {
+          localStorage.setItem("companyToken", data.token);
+          localStorage.setItem("rememberMe_company", "true");
+        } else {
+          sessionStorage.setItem("companyToken", data.token);
+        }
         toast.success(data.message);
         navigate("/dashboard");
       } else {
@@ -76,7 +82,8 @@ const RecruiterLogin = () => {
                 <input
                   type={showPassword ? "text" : "password"}
                   placeholder="Password"
-                  className="w-full outline-none text-sm"
+                  className="w-full outline-none text-sm [&::-ms-reveal]:hidden [&::-ms-clear]:hidden [&::-webkit-credentials-auto-fill-button]:hidden"
+                  style={{ WebkitAppearance: "none" }}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -95,7 +102,8 @@ const RecruiterLogin = () => {
                   <input
                     type="checkbox"
                     className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                    required
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
                   />
                   <span className="text-sm text-gray-600">Remember me</span>
                 </label>

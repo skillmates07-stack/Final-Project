@@ -150,7 +150,7 @@ const ManageJobs = () => {
   }, []);
 
   useEffect(() => {
-    document.title = "Superio - Job Portal | Dashboard";
+    document.title = "Recrut - Job Portal | Dashboard";
   }, []);
 
   // Check if company is verified

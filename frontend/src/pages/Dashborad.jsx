@@ -65,7 +65,7 @@ const Dashboard = () => {
       location.pathname === "/dashboard" ||
       location.pathname === "/dashboard/"
     ) {
-      document.title = "Superio - Job Portal | Dashboard";
+      document.title = "Recrut - Job Portal | Dashboard";
       // Redirect based on account type
       if (companyData?.accountType === "Household") {
         // All households default to Profile Settings

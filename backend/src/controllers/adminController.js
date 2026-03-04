@@ -2,12 +2,14 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import Company from "../models/Company.js";
+import Job from "../models/Job.js";
 import axios from "axios";
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const pdfParse = require("pdf-parse");
 import { parseResume } from "../utils/resumeParser.js";
 import { parseResumeWithAI, categorizeProject } from "../utils/aiResumeParser.js";
+import CompanyNotification from "../models/CompanyNotification.js";
 import { extractTextWithOCR, isTextExtractionFailed } from "../utils/ocrExtractor.js";
 
 // Admin login with fixed credentials from environment
@@ -206,7 +208,7 @@ export const getCompanies = async (req, res) => {
 // Verify a company for job posting
 export const verifyCompany = async (req, res) => {
     try {
-        const { companyId, isVerified } = req.body;
+        const { companyId, isVerified, verificationNote } = req.body;
 
         if (!companyId) {
             return res.status(400).json({
@@ -224,10 +226,33 @@ export const verifyCompany = async (req, res) => {
             });
         }
 
-        company.isVerified = isVerified !== false; // Default to true if not specified
+        company.isVerified = isVerified !== false;
         company.verificationDate = company.isVerified ? new Date() : null;
+        if (verificationNote !== undefined) {
+            company.verificationNote = verificationNote;
+        }
 
         await company.save();
+
+        // When verification is revoked, hide all company's jobs
+        // When re-verified, only restore jobs that were NOT soft-deleted by the recruiter
+        await Job.updateMany(
+            { companyId: companyId, isDeleted: { $ne: true } },
+            { $set: { visible: company.isVerified } }
+        );
+
+        // Send notification to the recruiter with the admin note
+        const actionLabel = company.isVerified ? "Approved" : "Revoked";
+        const defaultMsg = company.isVerified
+            ? "Your company has been verified. You can now post jobs."
+            : "Your company verification has been revoked. Your job listings have been hidden.";
+
+        await CompanyNotification.create({
+            companyId: companyId,
+            type: "system",
+            title: `Company Verification ${actionLabel}`,
+            message: verificationNote?.trim() || defaultMsg,
+        });
 
         return res.status(200).json({
             success: true,

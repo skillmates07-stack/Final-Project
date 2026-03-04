@@ -103,15 +103,42 @@ const ApplyJob = () => {
     }
   };
 
+  // Try to find job from context first, fallback to API fetch
   useEffect(() => {
-    if (jobs && id) {
-      const data = jobs.find((job) => job._id === id);
-      setJobData(data);
+    if (id) {
+      // First try client-side jobs array
+      if (jobs && jobs.length > 0) {
+        const data = jobs.find((job) => job._id === id);
+        if (data) {
+          setJobData(data);
+          return;
+        }
+      }
+
+      // If not found in context (hidden job, notification link, etc.), fetch from API
+      const fetchJob = async () => {
+        try {
+          const { data } = await axios.get(`${backendUrl}/job/job/${id}`);
+          if (data.success) {
+            setJobData(data.jobData);
+          } else {
+            setJobData("not_found");
+          }
+        } catch (error) {
+          console.error("Error fetching job:", error);
+          setJobData("not_found");
+        }
+      };
+
+      // Only fetch if jobs are loaded but this job isn't in them, or if jobs failed to load
+      if (!jobLoading) {
+        fetchJob();
+      }
     }
-  }, [id, jobs]);
+  }, [id, jobs, jobLoading]);
 
   useEffect(() => {
-    if (userApplication?.length > 0 && jobData) {
+    if (userApplication?.length > 0 && jobData && jobData !== "not_found") {
       const hasApplied = userApplication.some(
         (item) => item?.jobId?._id === jobData?._id
       );
@@ -120,7 +147,7 @@ const ApplyJob = () => {
   }, [jobData, userApplication]);
 
   useEffect(() => {
-    if (jobs && jobData) {
+    if (jobs && jobData && jobData !== "not_found") {
       const similarJobs = jobs.filter(
         (job) =>
           job._id !== jobData?._id &&
@@ -129,6 +156,25 @@ const ApplyJob = () => {
       setNoSimilarJobs(similarJobs.length === 0);
     }
   }, [jobData, jobs]);
+
+  if (jobData === "not_found") {
+    return (
+      <>
+        <Navbar />
+        <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+          <h2 className="text-xl font-semibold text-gray-700">Job Not Found</h2>
+          <p className="text-gray-500">This job may have been removed or is no longer available.</p>
+          <button
+            onClick={() => navigate("/all-jobs/all")}
+            className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            Browse All Jobs
+          </button>
+        </div>
+        <Footer />
+      </>
+    );
+  }
 
   if (jobLoading || !jobData) {
     return (
@@ -185,14 +231,14 @@ const ApplyJob = () => {
           </div>
           <div className="md:mt-6 flex flex-col items-start gap-2.5">
             <button
-              className={`${alreadyApplied
+              className={`${userData && alreadyApplied
                 ? "bg-gray-400 cursor-not-allowed"
                 : "bg-blue-600 hover:bg-blue-700 cursor-pointer"
                 } text-white font-medium py-2 px-6 rounded-md transition duration-200 shadow-sm `}
               onClick={() => applyJob(jobData?._id)}
-              disabled={alreadyApplied}
+              disabled={userData && alreadyApplied}
             >
-              {alreadyApplied ? "Already Applied" : "Apply now"}
+              {userData && alreadyApplied ? "Already Applied" : "Apply now"}
             </button>
             <div className="flex items-center gap-1.5 text-sm text-gray-600">
               <Clock size={18} />

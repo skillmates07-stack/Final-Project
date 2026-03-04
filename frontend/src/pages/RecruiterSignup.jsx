@@ -1,5 +1,5 @@
 import axios from "axios";
-import { Lock, Mail, Upload, UserRound, LoaderCircle, Building2, Home } from "lucide-react";
+import { Lock, Mail, Upload, UserRound, LoaderCircle, Building2, Home, Eye, EyeOff } from "lucide-react";
 import React, { useContext, useState } from "react";
 import { Link, useNavigate } from "react-router-dom"; // ✅ Added useNavigate
 import Footer from "../components/Footer";
@@ -12,6 +12,7 @@ const RecruiterSignup = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const { backendUrl, setCompanyData, setCompanyToken } =
@@ -45,7 +46,7 @@ const RecruiterSignup = () => {
         toast.error(data.message);
       }
 
-      console.log("Signup successful:", data);
+
     } catch (error) {
       toast.error(error?.response?.data?.message || "Signup failed.");
     } finally {
@@ -88,7 +89,15 @@ const RecruiterSignup = () => {
                       type="file"
                       className="hidden"
                       accept="image/*"
-                      onChange={(e) => setCompanyLogo(e.target.files[0])}
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (file && !file.type.startsWith("image/")) {
+                          toast.error("Only image files are allowed (JPG, PNG, WEBP, etc.)");
+                          e.target.value = "";
+                          return;
+                        }
+                        setCompanyLogo(file);
+                      }}
                       required
                     />
                   </div>
@@ -127,13 +136,21 @@ const RecruiterSignup = () => {
                 <div className="border border-gray-300 rounded flex items-center p-2.5">
                   <Lock className="h-5 w-5 text-gray-400 mr-2" />
                   <input
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     placeholder="Create password"
-                    className="w-full outline-none text-sm bg-transparent"
+                    className="w-full outline-none text-sm bg-transparent [&::-ms-reveal]:hidden [&::-ms-clear]:hidden"
+                    style={{ WebkitAppearance: "none" }}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
                 </div>
               </div>
 

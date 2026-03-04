@@ -124,8 +124,8 @@ const ViewApplications = () => {
       return [
         app.userId?.name || "N/A",
         app.userId?.email || "N/A",
-        app.userId?.contactInfo?.phone || "Not provided",
-        appliedDate,
+        "\t" + (app.userId?.contactInfo?.phone || "Not provided"),
+        "\t" + appliedDate,
         app.status || "Pending",
         skillsText,
         app.userId?.experience?.years || "0",
@@ -160,7 +160,7 @@ const ViewApplications = () => {
   };
 
   useEffect(() => {
-    document.title = "Superio - Job Portal | Dashboard";
+    document.title = "Recrut - Job Portal | Dashboard";
   }, []);
 
   useEffect(() => {

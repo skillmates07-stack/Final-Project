@@ -1,7 +1,7 @@
 import React, { useContext, useState } from "react";
 import Footer from "../components/Footer";
 import Navbar from "../components/Navbar";
-import { Mail, Lock, LoaderCircle } from "lucide-react";
+import { Mail, Lock, LoaderCircle, Eye, EyeOff } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom"; // ✅ Added useNavigate
 import axios from "axios";
 import { AppContext } from "../context/AppContext";
@@ -10,6 +10,8 @@ import toast from "react-hot-toast";
 const CandidatesLogin = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
@@ -30,7 +32,12 @@ const CandidatesLogin = () => {
         setUserToken(data.token);
         setUserData(data.userData);
         setIsLogin(true);
-        localStorage.setItem("userToken", data.token);
+        if (rememberMe) {
+          localStorage.setItem("userToken", data.token);
+          localStorage.setItem("rememberMe_user", "true");
+        } else {
+          sessionStorage.setItem("userToken", data.token);
+        }
         toast.success(data.message);
         navigate("/");
       } else {
@@ -74,13 +81,21 @@ const CandidatesLogin = () => {
               <div className="border border-gray-300 rounded flex items-center p-2.5 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent">
                 <Lock className="h-5 w-5 text-gray-400 mr-2" />
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   placeholder="Password"
-                  className="w-full outline-none text-sm"
+                  className="w-full outline-none text-sm [&::-ms-reveal]:hidden [&::-ms-clear]:hidden"
+                  style={{ WebkitAppearance: "none" }}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
               </div>
 
               <div className="flex items-center justify-between">
@@ -88,6 +103,8 @@ const CandidatesLogin = () => {
                   <input
                     type="checkbox"
                     className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
                   />
                   <span className="text-sm text-gray-600">Remember me</span>
                 </label>

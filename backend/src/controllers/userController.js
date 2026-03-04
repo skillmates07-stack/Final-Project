@@ -309,7 +309,10 @@ export const uploadResume = async (req, res) => {
                 issuer: cert.issuer || "",
                 date: cert.year || cert.date || ""
               })),
-              extraCurricular: aiData.extraCurricular || [],
+              extraCurricular: (aiData.extraCurricular || []).map(ec => ({
+                activity: typeof ec === "string" ? ec : ec.activity || "",
+                achievement: typeof ec === "string" ? "" : ec.achievement || ""
+              })),
               areasOfInterest: aiData.areasOfInterest || [],
               hobbies: aiData.hobbies || [],
               projectTypes: ["Web Development"],

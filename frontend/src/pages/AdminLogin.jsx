@@ -1,6 +1,6 @@
 import React, { useContext, useState } from "react";
-import { Mail, Lock, LoaderCircle, ShieldCheck } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Mail, Lock, LoaderCircle, ShieldCheck, Eye, EyeOff } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import { AppContext } from "../context/AppContext";
 import toast from "react-hot-toast";
@@ -10,6 +10,7 @@ import Footer from "../components/Footer";
 const AdminLogin = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
 
     const navigate = useNavigate();
@@ -78,13 +79,21 @@ const AdminLogin = () => {
                             <div className="border border-gray-300 rounded flex items-center p-2.5 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent">
                                 <Lock className="h-5 w-5 text-gray-400 mr-2" />
                                 <input
-                                    type="password"
+                                    type={showPassword ? "text" : "password"}
                                     placeholder="Password"
-                                    className="w-full outline-none text-sm"
+                                    className="w-full outline-none text-sm [&::-ms-reveal]:hidden [&::-ms-clear]:hidden"
+                                    style={{ WebkitAppearance: "none" }}
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     required
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                                >
+                                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                </button>
                             </div>
 
                             <button

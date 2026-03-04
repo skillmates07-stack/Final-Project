@@ -152,7 +152,7 @@ const AddJob = () => {
   }, []);
 
   useEffect(() => {
-    document.title = "Superio - Job Portal | Dashboard";
+    document.title = "Recrut - Job Portal | Dashboard";
   }, []);
 
   // Check if company is verified
@@ -335,6 +335,9 @@ const AddJob = () => {
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               value={salary}
               onChange={(e) => setSalary(e.target.value)}
+              min="1"
+              max="500"
+              required
             />
           </div>
         </div>

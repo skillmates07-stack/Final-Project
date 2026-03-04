@@ -22,7 +22,7 @@ const Navbar = () => {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const profileMenuRef = useRef(null);
   const mobileMenuRef = useRef(null);
-  const { isLogin, userData, userDataLoading, fetchUserData, setIsLogin } =
+  const { isLogin, userData, userDataLoading, fetchUserData, setIsLogin, setUserToken, setUserData } =
     useContext(AppContext);
   const location = useLocation();
 
@@ -71,10 +71,16 @@ const Navbar = () => {
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("userToken");
-    toast.success("Logout successfully");
-    navigate("/candidate-login");
+    // Clear React context state
+    setUserToken(null);
+    setUserData(null);
     setIsLogin(false);
+    // Clear all storages
+    localStorage.removeItem("userToken");
+    localStorage.removeItem("rememberMe_user");
+    sessionStorage.removeItem("userToken");
+    toast.success("Logged out successfully");
+    navigate("/candidate-login");
   };
   useEffect(() => {
     setIsMobileMenuOpen(false);

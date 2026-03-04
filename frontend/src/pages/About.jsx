@@ -17,7 +17,7 @@ const About = () => {
         {/* About Section */}
         <div className="mt-16">
           <h1 className="text-3xl md:text-4xl font-semibold mb-8 text-center text-gray-700">
-            About Superio - Your Career Gateway
+            About Recrut - Your Career Gateway
           </h1>
           <div className="max-w-4xl text-center mx-auto space-y-6 text-gray-600">
             <motion.p
@@ -26,7 +26,7 @@ const About = () => {
               whileInView="visible"
               className="leading-relaxed"
             >
-              Superio is a modern job portal designed to bridge the gap between talented
+              Recrut is a modern job portal designed to bridge the gap between talented
               candidates and leading companies. We provide a seamless platform where job seekers
               can discover opportunities that match their skills, and recruiters can find the
               perfect candidates for their teams.

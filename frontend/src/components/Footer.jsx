@@ -13,7 +13,7 @@ const Footer = () => {
             <Link to="/">
               <div className="flex items-center gap-2">
                 <img src="/favicon.png" alt="Recrut Logo" className="w-7 h-7" />
-                <span className="text-2xl font-extrabold tracking-tight text-blue-600 mb-4 inline-block">Recrut</span>
+                <span className="text-2xl font-extrabold tracking-tight text-blue-600">Recrut</span>
               </div>
             </Link>
             <p className="text-gray-600 text-sm max-w-md">

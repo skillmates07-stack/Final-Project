@@ -1,5 +1,5 @@
 import axios from "axios";
-import { LoaderCircle, Lock, Mail, Upload, UserRound } from "lucide-react";
+import { LoaderCircle, Lock, Mail, Upload, UserRound, Eye, EyeOff } from "lucide-react";
 import React, { useContext, useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -11,6 +11,7 @@ const CandidatesSignup = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [image, setImage] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -104,7 +105,15 @@ const CandidatesSignup = () => {
                     type="file"
                     className="hidden"
                     accept="image/*"
-                    onChange={(e) => setImage(e.target.files[0])}
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file && !file.type.startsWith("image/")) {
+                        toast.error("Only image files are allowed (JPG, PNG, WEBP, etc.)");
+                        e.target.value = "";
+                        return;
+                      }
+                      setImage(file);
+                    }}
                   />
                   <span className="block text-xs text-center mt-2 text-gray-500">
                     {image ? "Change photo" : "Upload your photo"}
@@ -142,14 +151,22 @@ const CandidatesSignup = () => {
                 <div className="border border-gray-300 rounded flex items-center p-2.5">
                   <Lock className="h-5 w-5 text-gray-400 mr-2" />
                   <input
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     placeholder="Password"
-                    className="w-full outline-none text-sm bg-transparent placeholder-gray-400"
+                    className="w-full outline-none text-sm bg-transparent placeholder-gray-400 [&::-ms-reveal]:hidden [&::-ms-clear]:hidden"
+                    style={{ WebkitAppearance: "none" }}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     autoComplete="new-password"
                     required
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
                 </div>
               </div>
 

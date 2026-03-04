@@ -12,16 +12,28 @@ export const AppContextProvider = ({ children }) => {
   const [jobs, setJobs] = useState([]);
   const [jobLoading, setJobLoading] = useState(false);
 
-  const [userToken, setUserToken] = useState(localStorage.getItem("userToken"));
+  // Only auto-restore from localStorage if the user explicitly checked "Remember Me"
+  const [userToken, setUserToken] = useState(() => {
+    if (localStorage.getItem("rememberMe_user") === "true") {
+      return localStorage.getItem("userToken") || sessionStorage.getItem("userToken");
+    }
+    // Clear any stale token left from pre-Remember-Me code
+    localStorage.removeItem("userToken");
+    return sessionStorage.getItem("userToken");
+  });
   const [userData, setUserData] = useState(null);
   const [userDataLoading, setUserDataLoading] = useState(false);
   const [isLogin, setIsLogin] = useState(!!userToken);
   const [userApplication, setUserApplication] = useState(null);
   const [applicationsLoading, setApplicationsLoading] = useState(false);
 
-  const [companyToken, setCompanyToken] = useState(
-    localStorage.getItem("companyToken")
-  );
+  const [companyToken, setCompanyToken] = useState(() => {
+    if (localStorage.getItem("rememberMe_company") === "true") {
+      return localStorage.getItem("companyToken") || sessionStorage.getItem("companyToken");
+    }
+    localStorage.removeItem("companyToken");
+    return sessionStorage.getItem("companyToken");
+  });
   const [companyData, setCompanyData] = useState(null);
   const [isCompanyLogin, setIsCompanyLogin] = useState(!!companyToken);
   const [companyLoading, setIsCompanyLoading] = useState(false);
@@ -31,19 +43,20 @@ export const AppContextProvider = ({ children }) => {
   const [adminData, setAdminData] = useState(null);
   const [isAdminLogin, setIsAdminLogin] = useState(!!adminToken);
 
+  // Clear tokens from both storages on logout
   useEffect(() => {
-    if (userToken) {
-      localStorage.setItem("userToken", userToken);
-    } else {
+    if (!userToken) {
       localStorage.removeItem("userToken");
+      localStorage.removeItem("rememberMe_user");
+      sessionStorage.removeItem("userToken");
     }
   }, [userToken]);
 
   useEffect(() => {
-    if (companyToken) {
-      localStorage.setItem("companyToken", companyToken);
-    } else {
+    if (!companyToken) {
       localStorage.removeItem("companyToken");
+      localStorage.removeItem("rememberMe_company");
+      sessionStorage.removeItem("companyToken");
     }
   }, [companyToken]);
 
